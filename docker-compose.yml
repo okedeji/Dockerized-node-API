@@ -1,0 +1,36 @@
+version: '3'
+services:
+  mysql:
+    build: ./database
+    environment:
+      MYSQL_DATABASE: turing
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_USER: turing
+      MYSQL_PASSWORD: turing
+      DATABASE_HOST: mysql
+    healthcheck:
+      test: "exit 0"
+    
+  node_challenge:
+    build: .
+    environment:
+      MYSQL_DATABASE: turing
+      # MYSQL_ROOT_PASSWORD: root
+      MYSQL_USER: turing
+      MYSQL_PASSWORD: turing
+      DATABASE_HOST: mysql
+      MYSQL_PORT: 3306
+      JWT_KEY: aRandomKeyPlease
+      STRIPE_SECRET_KEY: sk_test_kKvprOXjViwzRoXJYaNl0oK900AKQhOTAU
+      FACEBOOK_APP_ID: 725490874556203
+      FACEBOOK_APP_SECRET: e291d7036b5c10fde05388f974e50790
+      SENDER_EMAIL: tobishills12@gmail.com
+      MAIL_USER: okedeji
+      MAIL_PASSWORD: Catholic12
+    depends_on:
+      - mysql
+    entrypoint:
+      - /usr/local/bin/turing-entrypoint.sh
+    ports:
+      - "80:80"
+    restart: on-failure

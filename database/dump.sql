@@ -1,5 +1,11 @@
--- Create tshirtshop tables
+-- CREATE DATABASE IF NOT EXISTS turing;
 
+-- Create turing as a User
+-- GRANT ALL PRIVILEGES on turing.*
+-- TO 'turing'@'%' IDENTIFIED BY 'turing'
+-- WITH GRANT OPTION;
+
+-- Create tshirtshop tables
 -- Create department table
 CREATE TABLE `department` (
   `department_id` INT            NOT NULL  AUTO_INCREMENT,

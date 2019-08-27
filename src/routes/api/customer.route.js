@@ -1,26 +1,15 @@
 import { Router } from 'express';
 import CustomerController from '../../controllers/customer.controller';
-
-// These are valid routes but they may contain a bug, please try to define and fix them
+import { getToken } from "../../controllers/helpers/auth.helper";
 
 const router = Router();
-router.post(
-  '/customers',
-  CustomerController.updateCreditCard
-);
-router.post('/customers/login',  CustomerController.login);
-router.get('/customer', CustomerController.getCustomerProfile);
-router.put(
-  '/customer',
-  CustomerController.apply
-);
-router.put(
-  '/customer/address',
-  CustomerController.updateCustomerAddress
-);
-router.put(
-  '/customer/creditCard',
-  CustomerController.updateCreditCard
-);
+
+router.route("/customers").post(CustomerController.create);
+router.route("/customers/login").post(CustomerController.login);
+router.route("/customers").get(getToken, CustomerController.getCustomerProfile)
+router.route("/customer").put(getToken, CustomerController.updateCustomerProfile)
+router.route("/customer/address").put(getToken, CustomerController.updateCustomerAddress)
+router.route("/customer/creditCard").put(getToken, CustomerController.updateCreditCard)
+router.route("/customers/facebook").post(CustomerController.facebook)
 
 export default router;

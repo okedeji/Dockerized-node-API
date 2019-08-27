@@ -1,4 +1,4 @@
-<html>
+<!-- <html>
   <head>
     <title>Stripe Checkout Integration</title>
     <script src="https://checkout.stripe.com/checkout.js"></script>
@@ -35,4 +35,124 @@
       }. Use token to complete checkout</p>`;
     }
   </script>
+</html>
+ -->
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>Stripe Checkout Integration</title>
+    <script src="https://code.jquery.com/jquery-3.4.1.min.js" integrity="sha256-CSXorXvZcTkaix6Yvo6HppcZGetbYMGWSFlBw8HfCJo=" crossorigin="anonymous"></script>
+    <script src="https://js.stripe.com/v3/"></script>
+</head>
+<body>
+    <h3>Stripe Checkout Example </h3>
+
+    <div style="border: 1px sold black; width: 40%;">
+      <form action="/stripe/charge" method="post" id="payment-form">
+        <div class="form-row">
+          <label for="card-element">
+            Credit or debit card
+          </label>
+          <div id="card-element" style="border: 1px solid green;">
+            <!-- A Stripe Element will be inserted here. -->
+          </div>
+          <br />
+          <input type="text" name="order_id" id="order_id" placeholder="order_id" />
+          <!-- <input type="text" name="description" id="" placeholder="description" /> -->
+          <input type="text" name="email" id="email" placeholder="email" />
+          <input type="text" id="tokenField" placeholder="token">
+          
+      
+          <!-- Used to display Element errors. -->
+          <div id="card-errors" role="alert"></div>
+        </div>
+        <br />
+        <button>Checkout</button>
+      </form>
+    </div>
+
+    <script>
+        var stripe = Stripe('pk_test_x6tBNGUdGPCmyWw2pUDzlON30026y3N5po');
+        var elements = stripe.elements();
+
+        var style = {
+            base: {
+                // Add your base input styles here. For example:
+                fontSize: '16px',
+                color: "#32325d",
+            }
+        };
+
+        // Create an instance of the card Element.
+        var card = elements.create('card', {style: style});
+
+        // Add an instance of the card Element into the `card-element` <div>.
+        card.mount('#card-element');
+
+        card.addEventListener('change', function(event) {
+            var displayError = document.getElementById('card-errors');
+            if (event.error) {
+                displayError.textContent = event.error.message;
+            } else {
+                displayError.textContent = '';
+            }
+        });
+
+
+        // Create a token or display an error when the form is submitted.
+        var form = document.getElementById('payment-form');
+        form.addEventListener('submit', function(event) {
+            event.preventDefault();
+
+            stripe.createToken(card).then(function(result) {
+                if (result.error) {
+                    // Inform the customer that there was an error.
+                    var errorElement = document.getElementById('card-errors');
+                    errorElement.textContent = result.error.message;
+                } else {
+                    // Send the token to your server.
+                    stripeTokenHandler(result.token);
+                }
+            });
+        });
+
+        function stripeTokenHandler(token) {
+            // Insert the token ID into the form so it gets submitted to the server
+            var form = document.getElementById('payment-form');
+            var hiddenInput = document.createElement('input');
+            hiddenInput.setAttribute('type', 'hidden');
+            hiddenInput.setAttribute('name', 'stripeToken');
+            hiddenInput.setAttribute('id', 'stripeToken');
+            hiddenInput.setAttribute('value', token.id);
+            form.appendChild(hiddenInput);
+
+            // Submit the form
+            // form.submit();
+
+            $.ajax({
+                url: "http://localhost:81/stripe/charge",
+                type: 'POST',
+                data: { 
+                  order_id: $('#order_id').val(),
+                  email: $('#email').val(),
+                  stripeToken: $('#stripeToken').val(),
+                },
+                headers: {
+                  "Authorization": "Bearer " + $('#tokenField').val()
+                },
+                success: function(data){
+                  alert(data.message);
+                },
+                error : function(error) {
+                  alert(error)
+                },
+                async: false
+              });
+        }
+    </script>
+</body>
 </html>

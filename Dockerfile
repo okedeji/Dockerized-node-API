@@ -1,36 +1,24 @@
-FROM mysql:5.7
-MAINTAINER Peter Adeoye <peter.a@turing.com>
+FROM node:10
 
-# SETUP DATABASES
-ENV MYSQL_DATABASE 'turing'
-ENV MYSQL_ROOT_PASSWORD 'root'
-ENV MYSQL_USER 'turing'
-ENV MYSQL_PASSWORD 'turing'
+LABEL applicant Tobi Okedeji <okedejitobi@gmail.com>
 
-COPY ./database/dump.sql /docker-entrypoint-initdb.d/dump.sql
+WORKDIR /www/NodeChallenge
 
-ENV NODE_ENV=development
-COPY package.json package-lock.json ./
+# For babel
+RUN npm install babel-cli -g
 
-RUN apt-get update && \
-    apt-get install curl software-properties-common make -y && \
-    curl -sL https://deb.nodesource.com/setup_12.x | bash -
-
-RUN apt-get update && \
-    apt-get install -y \
-    nodejs
-
-RUN apt-get install build-essential -y
-
-RUN mkdir /backend
-WORKDIR /
-
-COPY package-*.json .
+# Caching 
+COPY package*.json ./
 RUN npm install
 
+# Copy API files
 COPY . .
 
+# Expose port
 EXPOSE 80
-COPY turing-entrypoint.sh /turing-entrypoint.sh
 
-CMD ["sh", "turing-entrypoint.sh"]
+# Entrypoint script
+RUN cp turing-entrypoint.sh /usr/local/bin/ && \
+    chmod +x /usr/local/bin/turing-entrypoint.sh
+
+ENTRYPOINT ["sh", "/usr/local/bin/turing-entrypoint.sh"]

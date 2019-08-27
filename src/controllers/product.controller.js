@@ -19,11 +19,13 @@
  */
 import {
   Product,
+  ProductCategory,
   Department,
   AttributeValue,
   Attribute,
   Category,
   Sequelize,
+  sequelize
 } from '../database/models';
 
 const { Op } = Sequelize;
@@ -45,17 +47,23 @@ class ProductController {
    * @memberof ProductController
    */
   static async getAllProducts(req, res, next) {
-    const { query } = req;
-    const { page, limit, offset } = query
-    const sqlQueryMap = {
-      limit,
-      offset,
-    };
     try {
+      let {sqlQueryMap, description_length, page}  = res.locals.pager;
+
       const products = await Product.findAndCountAll(sqlQueryMap);
+
+      products.rows.forEach(el => {
+        el.description =  el.description.substr(0, description_length)
+      });
+
       return res.status(200).json({
-        status: true,
-        products,
+        "paginationMeta":   {
+          "currentPage": page,
+          "currentPageSize": sqlQueryMap.limit,
+          "totalPages": Math.ceil(products.count/sqlQueryMap.limit), 
+          "totalRecords": products.count, 
+        }, 
+        rows: products.rows
       });
     } catch (error) {
       return next(error);
@@ -73,10 +81,32 @@ class ProductController {
    * @memberof ProductController
    */
   static async searchProduct(req, res, next) {
-    const { query_string, all_words } = req.query;  // eslint-disable-line
-    // all_words should either be on or off
-    // implement code to search product
-    return res.status(200).json({ message: 'this works' });
+    try {
+      const { query_string, all_words } = req.query; // what does all_words mean?
+
+      let {sqlQueryMap, description_length}  = res.locals.pager,
+          {limit, offset} = sqlQueryMap;
+
+      let sql = ` SELECT product_id, name, description, price, discounted_price, thumbnail FROM product 
+                  WHERE MATCH (name, description) AGAINST (:query_string)
+                  LIMIT :offset, :limit`;
+
+      const products = await sequelize.query(sql, { 
+        replacements: { query_string, offset, limit }, 
+        type: sequelize.QueryTypes.SELECT,
+        model: Product
+      })
+
+      await products.forEach(el => {
+        el.description =  el.description.substr(0, description_length)
+      });
+
+      return res.status(200).json({
+        rows: products
+      })
+    } catch (error) {
+      next(error)
+    }
   }
 
   /**
@@ -90,23 +120,31 @@ class ProductController {
    * @memberof ProductController
    */
   static async getProductsByCategory(req, res, next) {
-
     try {
-      const { category_id } = req.params; // eslint-disable-line
+      const { category_id } = req.params;
+      let {sqlQueryMap, description_length}  = res.locals.pager;
       const products = await Product.findAndCountAll({
-        include: [
-          {
-            model: Department,
-            where: {
-              category_id,
-            },
-            attributes: [],
-          },
-        ],
-        limit,
-        offset,
+        include: {
+          model: Category,
+          where: { category_id },
+          required: true
+        },
+        limit: sqlQueryMap.limit,
+        offset: sqlQueryMap.offset
       });
-      return next(products);
+
+      let formattedProduct = products.rows.map(el => {
+        return {
+          "product_id": el.product_id, 
+          "name": el.name,
+          "description": el.description.substr(0, description_length),
+          "price": el.price,
+          "discounted_price": el.discounted_price, 
+          "thumbnail": el.thumbnail,
+        }
+      });
+      
+      return res.status(200).json({rows: formattedProduct});
     } catch (error) {
       return next(error);
     }
@@ -123,7 +161,34 @@ class ProductController {
    * @memberof ProductController
    */
   static async getProductsByDepartment(req, res, next) {
-    // implement the method to get products by department
+    try {
+      const { department_id } = req.params;
+      let {sqlQueryMap, description_length}  = res.locals.pager;
+      const products = await Product.findAndCountAll({
+        include: {
+          model: Category,
+          where: { department_id },
+          required: true
+        },
+        limit: sqlQueryMap.limit,
+        offset: sqlQueryMap.offset
+      });
+
+      let formattedProduct = products.rows.map(el => {
+        return {
+          "product_id": el.product_id, 
+          "name": el.name,
+          "description": el.description.substr(0, description_length),
+          "price": el.price,
+          "discounted_price": el.discounted_price, 
+          "thumbnail": el.thumbnail,
+        }
+      });
+      
+      return res.status(200).json({rows: formattedProduct});
+    } catch (error) {
+      return next(error);
+    }
   }
 
   /**
@@ -137,28 +202,15 @@ class ProductController {
    * @memberof ProductController
    */
   static async getProduct(req, res, next) {
-
-    const { product_id } = req.params;  // eslint-disable-line
     try {
-      const product = await Product.findByPk(product_id, {
-        include: [
-          {
-            model: AttributeValue,
-            as: 'attributes',
-            attributes: ['value'],
-            through: {
-              attributes: [],
-            },
-            include: [
-              {
-                model: Attribute,
-                as: 'attribute_type',
-              },
-            ],
-          },
-        ],
-      });
-      return res.status(500).json({ message: 'This works!!1' });
+      const { product_id } = req.params;  // eslint-disable-line
+      const product = await Product.findByPk(product_id);
+
+      let description_length = res.locals.pager.description_length;
+
+      product.description = product.description.substr(0, description_length)
+
+      return res.status(200).json(product);
     } catch (error) {
       return next(error);
     }
@@ -214,8 +266,12 @@ class ProductController {
    * @param {*} next
    */
   static async getAllCategories(req, res, next) {
-    // Implement code to get all categories here
-    return res.status(200).json({ message: 'this works' });
+    try {
+      const categories = await Category.findAll();
+      return res.status(200).json({rows: categories});
+    } catch (error) {
+      return next(error);
+    }
   }
 
   /**
@@ -226,8 +282,20 @@ class ProductController {
    */
   static async getSingleCategory(req, res, next) {
     const { category_id } = req.params;  // eslint-disable-line
-    // implement code to get a single category here
-    return res.status(200).json({ message: 'this works' });
+    try {
+      const category = await Category.findByPk(category_id);
+      if (category) {
+        return res.status(200).json(category);
+      }
+      return res.status(404).json({
+        error: {
+          status: 404,
+          message: `Department with id ${category_id} does not exist`,  // eslint-disable-line
+        }
+      });
+    } catch (error) {
+      return next(error);
+    }
   }
 
   /**
@@ -238,8 +306,22 @@ class ProductController {
    */
   static async getDepartmentCategories(req, res, next) {
     const { department_id } = req.params;  // eslint-disable-line
-    // implement code to get categories in a department here
-    return res.status(200).json({ message: 'this works' });
+    try {
+      const category = await Category.findAll({
+        where: {department_id}
+      });
+      if (category) {
+        return res.status(200).json({rows: category});
+      }
+      return res.status(404).json({
+        error: {
+          status: 404,
+          message: `Department with id ${department_id} does not exist`,  // eslint-disable-line
+        }
+      });
+    } catch (error) {
+      return next(error);
+    }
   }
 }
 

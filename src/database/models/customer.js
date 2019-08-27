@@ -1,4 +1,6 @@
+require('dotenv').config();
 import bcrypt from 'bcrypt';
+import jwt from "jsonwebtoken";
 
 module.exports = (sequelize, DataTypes) => {
   const Customer = sequelize.define(
@@ -73,6 +75,14 @@ module.exports = (sequelize, DataTypes) => {
     const { password, ...data } = this.dataValues;
     return data;
   };
+
+  Customer.prototype.signToken = function signToken(payload) {
+    const token = jwt.sign(payload, process.env.JWT_KEY, { expiresIn: '24h' });
+    return {
+      "accessToken": `Bearer ${token}`,
+      "expires_in": "24h"
+    }
+  }
 
   Customer.associate = ({ Order }) => {
     // associations can be defined here

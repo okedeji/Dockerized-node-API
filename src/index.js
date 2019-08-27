@@ -10,8 +10,19 @@ import compression from 'compression';
 import helmet from 'helmet';
 import cors from 'cors';
 import router from './routes';
+import passport from "passport";
+import { fbAuth } from "./controllers/helpers/auth.helper"
+import { sequelize } from "./database/models";
 
-const isProduction = process.env.NODE_ENV === 'production';
+const isProduction = process.env.NODE_ENV === "production";
+const isTest = process.env.NODE_ENV === "test";
+
+sequelize.authenticate()
+  .then(() => log('Connection has been established successfully.'))
+  .catch(err => {
+    console.error('Unable to connect to the database:', err)
+    return process.exit(22);
+  });
 
 
 const app = express();
@@ -27,7 +38,7 @@ app.use(cors(corsOptions));
 app.use(compression());
 app.use(helmet());
 
-app.use(morgan('dev'));
+if(!isTest) app.use(morgan('dev'));
 
 app.use(
   bodyParser.urlencoded({
@@ -38,15 +49,19 @@ app.use(
 app.use(bodyParser.json());
 app.use(expressValidator());
 
-app.use(
-  expressWinston.logger({
-    transports: [new winston.transports.Console()],
-    meta: false,
-    expressFormat: true,
-    colorize: true,
-    format: winston.format.combine(winston.format.colorize(), winston.format.simple()),
-  })
-);
+if(!isTest){
+  app.use(
+    expressWinston.logger({
+      transports: [new winston.transports.Console()],
+      meta: false,
+      expressFormat: true,
+      colorize: true,
+      format: winston.format.combine(winston.format.colorize(), winston.format.simple()),
+    })
+  );
+}
+
+fbAuth(passport)
 
 app.use('/stripe/charge', express.static(`${__dirname}/public`));
 
@@ -54,7 +69,7 @@ app.use(router);
 
 // catch 404 and forward to error handler
 app.use((req, res, next) => {
-  const err = new Error('Resource does not exist');
+  const err = new Error('Resource does not exist'); 
   err.status = 404;
   next(err);
 });
